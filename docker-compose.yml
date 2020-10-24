@@ -1,0 +1,85 @@
+version: '3.5'
+
+volumes:
+  local_postgres_data: {}
+  local_postgres_data_backups: {}
+
+services:
+  django: &django
+    container_name: django_template
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    image: django_project_local
+    depends_on:
+      - postgres
+      - celeryworker
+    volumes:
+      - .:/app
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    ports:
+      - "8000:8000"
+    command: /start
+    networks:
+      - internal
+    stdin_open: true
+    tty: true
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/local/postgres/Dockerfile
+    image: backend_postgres
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - local_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
+    networks:
+      - internal
+
+  redis:
+    image: redis:5.0
+    networks:
+      - internal
+
+  celeryworker:
+    <<: *django
+    container_name: celeryworker
+    depends_on:
+      - redis
+      - postgres
+    stdin_open: true
+    tty: true
+    ports:
+      - "6899-6909:6899-6909"
+    command: /start-celeryworker
+    networks:
+      - internal
+    environment:
+      - C_FORCE_ROOT=True
+
+  celerybeat:
+    <<: *django
+    container_name: celerybeat
+    depends_on:
+      - redis
+      - postgres
+    ports: []
+    command: /start-celerybeat
+    networks:
+      - internal
+
+  flower:
+    <<: *django
+    container_name: flower
+    ports:
+      - "5555:5555"
+    command: /start-flower
+    networks:
+      - internal
+
+networks:
+  internal:

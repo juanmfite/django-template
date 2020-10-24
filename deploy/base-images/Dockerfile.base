@@ -1,0 +1,10 @@
+FROM python:3.7-alpine
+
+RUN apk update && apk upgrade &&\
+    apk add postgresql-dev gcc python3-dev musl-dev libffi libffi-dev zlib zlib-dev jpeg-dev
+
+WORKDIR /app
+COPY deploy/requirements ./requirements
+
+RUN pip3 install --upgrade pip && \
+    pip3 install -r requirements/base.txt
